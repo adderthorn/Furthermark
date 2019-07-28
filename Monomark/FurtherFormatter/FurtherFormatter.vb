@@ -98,6 +98,7 @@ Namespace FurtherFormatter
                 If CharFormat.ForegroundColor <> LINK_COLOR Then CharFormat.ForegroundColor = LINK_COLOR
                 Return MdFormatType.Link
             End If
+            CharFormat = Document.GetDefaultCharacterFormat()
             Return MdFormatType.None
         End Function
 

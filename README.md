@@ -25,6 +25,24 @@ Furthermark uses all native UWP controls, including the WebView control to rende
 * Status bar with word/character counts
 * Ability to copy entire markdown document's raw HTML
 
+## Known Issues
+
+* Syntax highlighting in the editor pane sometimes gets "confused" and will get stuck highlighting everything as a header, code block, hyperlink, etc.
+* Switching between themes and loading of themes is unstable
+* Many functions of the web preview rely on specially-timed JavaScript calls; this has caused some instability
+* Scrolling is not synced as well as it could be
+* Right-clicking in the editor pane sometimes causes a formatting bar to appear, which should not happen
+
+## Planned New Features
+
+* Support tabs to allow multiple documents open at once
+* Support multiple copy options
+    * Rich formatting
+    * Copy snippet as HTML
+* Allow printing and exporting as PDF
+* Support language syntax highlighting in preview
+* Auto-bulleting lists
+
 ## Special Thanks
 
 A special thanks to [Markdig](https://github.com/lunet-io/markdig) for use of their wonderful Markdown processor.
