@@ -1,0 +1,58 @@
+# Changelog
+
+The official Furthermark Changelog.
+
+## 2019-07-24
+
+* Fixed a bug where headers would take over the formatting of the editor
+* **NEW!** Added dark theme and theme support, choose between light and dark or let your Windows theme decide!
+    * Added dark CSS theme as default for the dark mode
+* Added ability to change insert/overtype mode by clicking status bar label
+* Fixed a bug where panels would not retain correct ratio when maximizing or restoring the main window
+* Adjusted icon for small tile size to make icon more visible
+* Fixed a bug when opening a file may not update the preview pane
+* Fixed a bug where closing a document with unsaved changes and choosing "Save" would not close the app
+
+
+## 2019-06-27
+
+* Fixed a bug where CPU usage would remain constant at 1-5%
+* Fixed a bug where preview window would not properly refresh
+* Added labels to toolbar buttons
+* Fixed a bug where editor sizer would not sync with splitter sizer
+* Improved performance of formatting of editor pane
+* Added Undo feature
+* Improved performance when launching application
+
+## 2019-05-04
+
+* Fixed a bug where URLs would stay open in the webview instead of opening in a browser
+* Added ability to edit a custom CSS file
+* Tweaked the autoscroll algorithm for better scroll-syncing
+* Added a warning when attempting to close Furthermark with unsaved changes
+* Fixed a bug where Autosave would not work
+* Tweaked editor formatting to be more accurate and use less system resources
+
+## 2018-10-10 (1.1.6.0)
+
+* Fixed a bug where settings would fail to load
+* Adjusted unsaved dialog to contain an asterisk (*) before the file name for easier visibility
+
+## 2018-07-12 (1.1.5.0) ##
+
+* Fixed a bug where settings would not save correctly
+* Fixed a bug where text wrapping would always default to on and not always change
+* Fixed a bug where scrolling between preview and editor would not match for large documents
+* Fixed a bug where using a formatting command would not apply for selected text under certina scenarios
+* Changed default file name to "Untitled"
+* Changed default settings to enable word wrapping by default
+* Implemented feature to autosave documents
+
+## 2018-06-22 ##
+
+* Improved synchronized scrolling
+* Added Find
+
+### To-do ###
+
+* Fix scrolling sync with images (see Islay)

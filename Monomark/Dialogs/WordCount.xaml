@@ -1,0 +1,41 @@
+﻿<ContentDialog
+    x:Class="Furthermark.WordCount"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Furthermark"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Statistics"
+    PrimaryButtonText="Close"
+    PrimaryButtonClick="ContentDialog_PrimaryButtonClick">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Grid.Column="1" Text="Pages"/>
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="4"/>
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="Words"/>
+        <TextBlock Grid.Row="1" Grid.Column="2" Text="1,561"/>
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="Characters (no spaces)"/>
+        <TextBlock Grid.Row="2" Grid.Column="2" Text="7,711"/>
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="Characters (with spaces)"/>
+        <TextBlock Grid.Row="3" Grid.Column="2" Text="9,234"/>
+        <TextBlock Grid.Row="4" Grid.Column="1" Text="Paragraphs"/>
+        <TextBlock Grid.Row="4" Grid.Column="2" Text="26"/>
+        <TextBlock Grid.Row="5" Grid.Column="1" Text="Lines"/>
+        <TextBlock Grid.Row="5" Grid.Column="2" Text="128"/>
+        <CheckBox Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Content="Include code and code blocks" Click="CheckBox_Click"/>
+    </Grid>
+</ContentDialog>
