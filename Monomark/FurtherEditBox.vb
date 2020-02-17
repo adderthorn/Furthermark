@@ -8,6 +8,9 @@ Public Class FurtherEditBox
     Public Event OnFormatEventHandler As EventHandler(Of FormatEventArgs)
     Public Property SourceIsProgramatic As Boolean
 
+    Public Sub New()
+    End Sub
+
     Protected Overrides Sub OnProcessKeyboardAccelerators(args As ProcessKeyboardAcceleratorEventArgs)
         MyBase.OnProcessKeyboardAccelerators(args)
 
@@ -26,7 +29,6 @@ Public Class FurtherEditBox
             args.Handled = True
         End If
     End Sub
-
 End Class
 
 Public Class FormatEventArgs

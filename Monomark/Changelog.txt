@@ -2,6 +2,22 @@
 
 The official Furthermark Changelog.
 
+## Monday, February 17, 2020 4:47 PM
+
+* Now using UWP app settings for saving settings resulting in less bugs where preferences would become overwritten
+* Fixed a bug where editor syntax highlighting would get "stuck" and no longer accurately highlight items
+* Moved settings to modal flyout instead of popup
+* Added about box with license and contact information
+* Fixed bug where preview size would not be respected when resizing window
+* Furthermark can now have multiple windows opened at a time
+* Furthermark can now be associated with common Markdown file types to be the default application to open the files (`*.md`, `*.mdown`, `*.markdown`)
+* Fixed bug where theme would not always set correctly in later versions of Windows 10
+* Fixed bug where hotkeys for certain items (e.g. Find Text) would not work unless tool item was visible in the toolbar
+* Fixed bug where Undo would not undo last action
+* Fixed bug where Redo would not redo last undo
+* Fixed bug where Shift+Tab would not advance backwards
+* Added option to change overtype mode by clicking the INS/OVR button in the status bar
+
 ## 2019-07-24
 
 * Fixed a bug where headers would take over the formatting of the editor

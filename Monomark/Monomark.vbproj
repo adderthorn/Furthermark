@@ -21,16 +21,20 @@
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x86|x64|arm</AppxBundlePlatforms>
-    <PackageCertificateThumbprint>D36EFEEDA65F6C229B2F9D8810ED2A1E4D21641E</PackageCertificateThumbprint>
-    <AppInstallerUpdateFrequency>1</AppInstallerUpdateFrequency>
+    <PackageCertificateThumbprint>
+    </PackageCertificateThumbprint>
+    <AppInstallerUpdateFrequency>0</AppInstallerUpdateFrequency>
     <AppInstallerCheckForUpdateFrequency>OnApplicationRun</AppInstallerCheckForUpdateFrequency>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\x86\Debug\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>x86</PlatformTarget>
     <UseVSHostingProcess>false</UseVSHostingProcess>
@@ -42,7 +46,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\x86\Release\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x86</PlatformTarget>
@@ -58,7 +62,7 @@
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\ARM\Debug\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>ARM</PlatformTarget>
     <UseVSHostingProcess>false</UseVSHostingProcess>
@@ -70,7 +74,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|ARM'">
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\ARM\Release\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>ARM</PlatformTarget>
@@ -86,7 +90,7 @@
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\x64\Debug\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
     <UseVSHostingProcess>false</UseVSHostingProcess>
@@ -98,7 +102,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\x64\Release\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x64</PlatformTarget>
@@ -120,6 +124,9 @@
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="CharacterMapping.vb" />
+    <Compile Include="Dialogs\AboutDialog.xaml.vb">
+      <DependentUpon>AboutDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Dialogs\EditCssDialog.xaml.vb">
       <DependentUpon>EditCssDialog.xaml</DependentUpon>
     </Compile>
@@ -129,6 +136,7 @@
     <Compile Include="Dialogs\WordCount.xaml.vb">
       <DependentUpon>WordCount.xaml</DependentUpon>
     </Compile>
+    <Compile Include="DocumentPrintHelper.vb" />
     <Compile Include="ExtensionMethods.vb" />
     <Compile Include="FurtherDocument.vb" />
     <Compile Include="FurtherEditBox.vb" />
@@ -142,12 +150,15 @@
     </Compile>
     <Compile Include="MarkdownChars.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
+    <Compile Include="PrintHelper.vb" />
+    <Compile Include="Program.vb" />
     <Compile Include="Settings.vb" />
     <Compile Include="TargetBlankLinks\TargetBlankLinkInlineParser.vb" />
     <Compile Include="TargetBlankLinks\TargetBlankLinksExtension.vb" />
     <Compile Include="TestConverter.vb" />
     <Compile Include="TestDoc.vb" />
     <Compile Include="ThemeModeConverter.vb" />
+    <Compile Include="TimestampFormat.vb" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
@@ -207,6 +218,7 @@
     <Content Include="WebAssets\Default.html" />
     <Content Include="WebAssets\GitHub.css" />
     <Content Include="WebAssets\GitHubDark.css" />
+    <Content Include="WebAssets\GPLv3.txt" />
     <None Include="Package.StoreAssociation.xml" />
   </ItemGroup>
   <ItemGroup>
@@ -215,6 +227,10 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Page Include="AboutPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Dialogs\AboutDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -298,7 +314,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug .NET Native|x86'">
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\x86\Debug .NET Native\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP,CODE_ANALYSIS</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,CODE_ANALYSIS,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <DocumentationFile>Furthermark.xml</DocumentationFile>
     <Optimize>false</Optimize>
     <NoWarn>42030,42104,42108,42109</NoWarn>
@@ -316,7 +332,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug .NET Native|ARM'">
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\ARM\Debug .NET Native\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP,CODE_ANALYSIS</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,CODE_ANALYSIS,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <DocumentationFile>Furthermark.xml</DocumentationFile>
     <Optimize>true</Optimize>
     <NoWarn>42030,42104,42108,42109</NoWarn>
@@ -331,7 +347,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug .NET Native|x64'">
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\x64\Debug .NET Native\</OutputPath>
-    <DefineConstants>NETFX_CORE,WINDOWS_UWP,CODE_ANALYSIS</DefineConstants>
+    <DefineConstants>NETFX_CORE,WINDOWS_UWP,CODE_ANALYSIS,DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <DocumentationFile>Furthermark.xml</DocumentationFile>
     <Optimize>true</Optimize>
     <NoWarn>42030,42104,42108,42109</NoWarn>

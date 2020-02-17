@@ -8,14 +8,15 @@ Imports Windows.Storage.Streams
 <DataContract()>
 Public Class Settings
     Implements INotifyPropertyChanged
-    Implements ISaveable
+    'Implements ISaveable
 
 #Region "Private Variables"
-    Private Const FILE_NAME As String = "config.xml"
-    Public Const CURRENT_VERSION As Integer = 1
+    ' Private Const FILE_NAME As String = "config.xml"
+    Public Const CURRENT_VERSION As Integer = 2
     Private Shared ReadOnly WriterSettings As New XmlWriterSettings() _
         With {.Indent = True, .IndentChars = "    ", .NewLineHandling = NewLineHandling.Replace,
         .NewLineChars = vbCrLf, .WriteEndDocumentOnClose = True, .Async = True, .NewLineOnAttributes = False}
+    Private RoamingSettings As ApplicationDataContainer = Nothing
 
     Private _WrapText As TextWrapping
     Private _AutoSave As Boolean
@@ -28,10 +29,11 @@ Public Class Settings
     Private _Theme As ElementTheme
     Private _UseCustomCSS As Boolean
     Private _Version As Integer
+    Private _TimestampFormatString As String
 #End Region
 
 #Region "Public Properties"
-    <DataMember()>
+
     Public Property WrapText As TextWrapping
         Get
             Return _WrapText
@@ -41,7 +43,7 @@ Public Class Settings
                 _WrapText = value
                 RaisePropertyChanged(NameOf(WrapText))
                 RaisePropertyChanged(NameOf(WrapTextBool))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(WrapText)) = Convert.ChangeType(value, value.GetTypeCode())
             End If
         End Set
     End Property
@@ -61,7 +63,7 @@ Public Class Settings
             End If
         End Set
     End Property
-    <DataMember()>
+
     Public Property AutoSave As Boolean
         Get
             Return _AutoSave
@@ -70,11 +72,11 @@ Public Class Settings
             If value <> _AutoSave Then
                 _AutoSave = value
                 RaisePropertyChanged(NameOf(AutoSave))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(AutoSave)) = value
             End If
         End Set
     End Property
-    <DataMember()>
+
     Public Property ShowPreview As Visibility
         Get
             Return _ShowPreview
@@ -84,7 +86,7 @@ Public Class Settings
                 _ShowPreview = value
                 RaisePropertyChanged(NameOf(ShowPreview))
                 RaisePropertyChanged(NameOf(ShowPreviewBoolean))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(ShowPreview)) = Convert.ChangeType(value, value.GetTypeCode)
             End If
         End Set
     End Property
@@ -96,7 +98,7 @@ Public Class Settings
             Return True
         End Get
     End Property
-    <DataMember()>
+
     Public Property PreviewSize As Integer
         Get
             Return _PreviewSize
@@ -108,11 +110,12 @@ Public Class Settings
             If value <> _PreviewSize Then
                 _PreviewSize = value
                 RaisePropertyChanged(NameOf(PreviewSize))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(PreviewSize)) = value
             End If
         End Set
     End Property
-    Public Property IsDirty As Boolean Implements ISaveable.IsDirty
+
+    Public Property IsDirty As Boolean 'Implements ISaveable.IsDirty
         Get
             Return _IsDirty
         End Get
@@ -123,7 +126,7 @@ Public Class Settings
             End If
         End Set
     End Property
-    <DataMember()>
+
     Public Property EditorFont As String
         Get
             Return _EditorFont
@@ -132,11 +135,11 @@ Public Class Settings
             If value <> _EditorFont Then
                 _EditorFont = value
                 RaisePropertyChanged(NameOf(EditorFont))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(EditorFont)) = value
             End If
         End Set
     End Property
-    <DataMember()>
+
     Public Property FontSize As Double
         Get
             Return _FontSize
@@ -145,11 +148,11 @@ Public Class Settings
             If value <> _FontSize Then
                 _FontSize = value
                 RaisePropertyChanged(NameOf(FontSize))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(FontSize)) = value
             End If
         End Set
     End Property
-    <DataMember()>
+
     Public Property SpellCheck As Boolean
         Get
             Return _SpellCheck
@@ -158,12 +161,12 @@ Public Class Settings
             If value <> _SpellCheck Then
                 _SpellCheck = value
                 RaisePropertyChanged(NameOf(SpellCheck))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(SpellCheck)) = value
             End If
         End Set
     End Property
+
     ' Added on 2018-10-13
-    <DataMember()>
     Public Property Theme As ElementTheme
         Get
             Return _Theme
@@ -172,13 +175,12 @@ Public Class Settings
             If value <> _Theme Then
                 _Theme = value
                 RaisePropertyChanged(NameOf(Theme))
-                MakeDirty()
+                RoamingSettings.Values(NameOf(Theme)) = Convert.ChangeType(value, value.GetTypeCode())
             End If
         End Set
     End Property
 
     'Added on 2019-07-04
-    <DataMember()>
     Public Property UseCustomCss As Boolean
         Get
             Return _UseCustomCSS
@@ -187,11 +189,11 @@ Public Class Settings
             If value <> _UseCustomCSS Then
                 _UseCustomCSS = value
                 RaisePropertyChanged(NameOf(UseCustomCss))
+                RoamingSettings.Values(NameOf(UseCustomCss)) = value
             End If
         End Set
     End Property
 
-    <DataMember()>
     Public Property Version As Integer
         Get
             Return _Version
@@ -200,14 +202,37 @@ Public Class Settings
             If value <> _Version Then
                 _Version = value
                 RaisePropertyChanged(NameOf(Version))
+                RoamingSettings.Values(NameOf(Version)) = value
             End If
+        End Set
+    End Property
+
+    Public Property TimestampFormatString As String
+        Get
+            Return _TimestampFormatString
+        End Get
+        Set(value As String)
+            If value <> _TimestampFormatString Then
+                _TimestampFormatString = value
+                RaisePropertyChanged(NameOf(TimestampFormatString))
+                RaisePropertyChanged(NameOf(TimestampFormat))
+                RoamingSettings.Values(NameOf(TimestampFormatString)) = value
+            End If
+        End Set
+    End Property
+
+    Public Property TimestampFormat As TimestampFormat
+        Get
+            Return New TimestampFormat(TimestampFormatString)
+        End Get
+        Set(value As TimestampFormat)
+            TimestampFormatString = value.FormatString
         End Set
     End Property
 #End Region
 
 #Region "Event Handlers"
     Public Event PropertyChanged As PropertyChangedEventHandler Implements INotifyPropertyChanged.PropertyChanged
-    Public Event Dirtied As EventHandler Implements ISaveable.Dirtied
 
     Protected Sub RaisePropertyChanged(<CallerMemberName> ByVal Name As String)
         'Console.WriteLine("Changed Property: " & Name)
@@ -217,87 +242,65 @@ Public Class Settings
 
 #Region "Constructors"
     Public Sub New()
-        WrapText = TextWrapping.Wrap
-        AutoSave = False
-        ShowPreview = Visibility.Visible
-        PreviewSize = 50
-        FontSize = 12D
-        EditorFont = "Consolas"
-        SpellCheck = True
-        Theme = ElementTheme.Default
-        Clean()
+        RoamingSettings = ApplicationData.Current.RoamingSettings
+        Dim VersionTest As [Object] = RoamingSettings.Values(NameOf(Version))
+        If Not VersionTest Is Nothing AndAlso TypeOf VersionTest Is Integer Then
+            LoadSettings()
+        Else
+            WrapText = TextWrapping.Wrap
+            AutoSave = False
+            ShowPreview = Visibility.Visible
+            PreviewSize = 50
+            FontSize = 12D
+            EditorFont = "Consolas"
+            SpellCheck = True
+            Theme = ElementTheme.Default
+            Version = CURRENT_VERSION
+            TimestampFormatString = "f"
+            Save()
+        End If
     End Sub
 #End Region
 
 #Region "Private Methods"
-    Private Shared Async Function CreateStreamFromFileAsync(ByVal CollisionOption As CreationCollisionOption) As Task(Of IRandomAccessStream)
-        Dim SubFile As StorageFile = Await ApplicationData.Current.RoamingFolder.CreateFileAsync(FILE_NAME, CollisionOption)
-        Dim Stream = Await SubFile.OpenAsync(FileAccessMode.ReadWrite)
-        Return Stream
-    End Function
+    Private Sub LoadSettings()
+        AutoSave = CBool(RoamingSettings.Values(NameOf(AutoSave)))
+        EditorFont = CStr(RoamingSettings.Values(NameOf(EditorFont)))
+        FontSize = CDbl(RoamingSettings.Values(NameOf(FontSize)))
+        PreviewSize = CInt(RoamingSettings.Values(NameOf(PreviewSize)))
+        ShowPreview = CType(RoamingSettings.Values(NameOf(ShowPreview)), Visibility)
+        SpellCheck = CBool(RoamingSettings.Values(NameOf(SpellCheck)))
+        Theme = CType(RoamingSettings.Values(NameOf(Theme)), ElementTheme)
+        UseCustomCss = CBool(RoamingSettings.Values(NameOf(UseCustomCss)))
+        WrapText = CType(RoamingSettings.Values(NameOf(WrapText)), TextWrapping)
+        TimestampFormatString = CStr(RoamingSettings.Values(NameOf(TimestampFormatString)))
+        UpdateVersion()
+    End Sub
 
-    Private Async Function UpgradeVersion() As Task
+    Private Sub UpdateVersion()
         While Version < CURRENT_VERSION
+            If Version = 1 Then
+                TimestampFormatString = "f"
+            End If
             Version += 1
-            Select Case Version
-                Case 1
-                    Dim CurrentCss = Await LoadCssAsync(ElementTheme.Default)
-                    _UseCustomCSS = Not (CurrentCss.Equals(Await LoadDefaultCssAsync(ElementTheme.Default), StringComparison.InvariantCultureIgnoreCase))
-                Case Else
-                    Exit While
-            End Select
         End While
-    End Function
-
-    Protected Overridable Sub OnDirtied(ByVal e As EventArgs) Implements ISaveable.OnDirtied
-        RaiseEvent Dirtied(Me, e)
     End Sub
 #End Region
 
 #Region "Public Methods"
-    Public Async Function SaveAsync() As Task Implements ISaveable.SaveAsync
-        Dim Folder As StorageFolder = ApplicationData.Current.RoamingFolder
-        Dim ConfigFile As StorageFile = Await Folder.CreateFileAsync(FILE_NAME, CreationCollisionOption.OpenIfExists)
-        Dim Serializer As New DataContractSerializer(GetType(Settings))
-        Dim Stream As IRandomAccessStream = Await CreateStreamFromFileAsync(CreationCollisionOption.ReplaceExisting)
-        Using Writer As XmlWriter = XmlWriter.Create(Stream.AsStream(), WriterSettings)
-            Serializer.WriteObject(Writer, Me)
-        End Using
-        Await Stream.FlushAsync()
-        Stream.Dispose()
-        Clean()
-    End Function
-
-    Public Sub MakeDirty()
-        If IsDirty = False Then
-            IsDirty = True
-            OnDirtied(EventArgs.Empty)
-        End If
+    Public Sub Save()
+        RoamingSettings.Values(NameOf(AutoSave)) = AutoSave
+        RoamingSettings.Values(NameOf(EditorFont)) = EditorFont
+        RoamingSettings.Values(NameOf(FontSize)) = FontSize
+        RoamingSettings.Values(NameOf(PreviewSize)) = PreviewSize
+        RoamingSettings.Values(NameOf(SpellCheck)) = SpellCheck
+        RoamingSettings.Values(NameOf(Theme)) = Convert.ChangeType(Theme, Theme.GetTypeCode())
+        RoamingSettings.Values(NameOf(UseCustomCss)) = UseCustomCss
+        RoamingSettings.Values(NameOf(Version)) = Version
+        RoamingSettings.Values(NameOf(WrapText)) = Convert.ChangeType(WrapText, WrapText.GetTypeCode())
+        RoamingSettings.Values(NameOf(ShowPreview)) = Convert.ChangeType(ShowPreview, ShowPreview.GetTypeCode())
+        RoamingSettings.Values(NameOf(TimestampFormatString)) = TimestampFormatString
     End Sub
-
-    Public Sub Clean() Implements ISaveable.Clean
-        IsDirty = False
-    End Sub
-#End Region
-
-#Region "Shared Methods"
-    Public Shared Async Function LoadAsync() As Task(Of Settings)
-        Dim NewSettings As Settings
-        Dim Serializer As New DataContractSerializer(GetType(Settings))
-        Using ConfigFileStream As IRandomAccessStream = Await CreateStreamFromFileAsync(CreationCollisionOption.OpenIfExists)
-            Using Reader As XmlReader = XmlReader.Create(ConfigFileStream.AsStream())
-                Try
-                    NewSettings = CType(Serializer.ReadObject(Reader), Settings)
-                    NewSettings.Clean()
-                Catch ex As Exception
-                    NewSettings = New Settings()
-                    NewSettings.MakeDirty()
-                End Try
-            End Using
-        End Using
-        Await NewSettings.UpgradeVersion()
-        Return NewSettings
-    End Function
 #End Region
 
 End Class

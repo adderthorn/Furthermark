@@ -1,4 +1,7 @@
-﻿''' <summary>
+﻿Option Strict On
+
+Imports Windows.Storage
+''' <summary>
 ''' Provides application-specific behavior to supplement the default Application class.
 ''' </summary>
 NotInheritable Class App
@@ -17,7 +20,6 @@ NotInheritable Class App
 
         ' Do not repeat app initialization when the Window already has content,
         ' just ensure that the window is active
-
         If rootFrame Is Nothing Then
             ' Create a Frame to act as the navigation context and navigate to the first page
             rootFrame = New Frame()
@@ -45,6 +47,24 @@ NotInheritable Class App
     End Sub
 
     ''' <summary>
+    ''' Invoked when opening a file type associated with the Application.
+    ''' </summary>
+    ''' <param name="e">Event arguments including file(s) to be opened.</param>
+    Protected Overrides Sub OnFileActivated(e As FileActivatedEventArgs)
+        For i As Integer = 0 To e.Files.Count - 1
+            Dim RootFrame As Frame = CreateRootFrame()
+            If RootFrame.Content Is Nothing Then
+                If Not RootFrame.Navigate(GetType(MainPage)) Then
+                    Throw New Exception("Failed to create initial page.")
+                End If
+            End If
+            Dim Pg = TryCast(RootFrame.Content, MainPage)
+            Pg.NavigateToPageWithDocument(CType(e.Files(i), IStorageFile))
+            Window.Current.Activate()
+        Next
+    End Sub
+
+    ''' <summary>
     ''' Invoked when Navigation to a certain page fails
     ''' </summary>
     ''' <param name="sender">The Frame which failed navigation</param>
@@ -65,5 +85,22 @@ NotInheritable Class App
         ' TODO: Save application state and stop any background activity
         deferral.Complete()
     End Sub
+
+    Private Function CreateRootFrame() As Frame
+        Dim RootFrame As Frame = TryCast(Window.Current.Content, Frame)
+        ' Do not repeat app initialization when the Window already has content,
+        ' just ensure that the window is active
+        If RootFrame Is Nothing Then
+            ' Create a Frame to act as the navigation context and navigate to the first page
+            RootFrame = New Frame()
+            With RootFrame
+                .Language = Windows.Globalization.ApplicationLanguages.Languages(0)
+                AddHandler .NavigationFailed, AddressOf OnNavigationFailed
+            End With
+            ' Place the frame in the current Window
+            Window.Current.Content = RootFrame
+        End If
+        Return RootFrame
+    End Function
 
 End Class

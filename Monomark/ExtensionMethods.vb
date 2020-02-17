@@ -8,6 +8,8 @@ Imports Microsoft.Graphics.Canvas.Text
 Imports Furthermark.TargetBlankLinks
 Imports Windows.Storage
 Imports Windows.ApplicationModel.Resources
+Imports Windows.UI.Core
+Imports Windows.System
 
 <Flags()>
 Public Enum MdFormatType
@@ -21,9 +23,10 @@ Public Enum MdFormatType
     Heading3 = 64
     Link = 128
     Strikethrough = 256
+    Plain = 512
 End Enum
 
-Public Enum SearchMethods
+Public Enum SearchMethod
     None
     [Next]
     Previous
@@ -157,5 +160,9 @@ Public Module ExtensionMethods
         Using Writer As New StreamWriter(Stream)
             Await Writer.WriteAsync(CssStr)
         End Using
+    End Function
+
+    Public Function IsKeyPressed(ByVal Key As VirtualKey) As Boolean
+        Return CoreWindow.GetForCurrentThread().GetKeyState(Key).HasFlag(CoreVirtualKeyStates.Down)
     End Function
 End Module

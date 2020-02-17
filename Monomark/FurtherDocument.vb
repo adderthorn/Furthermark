@@ -29,7 +29,7 @@ Public Class FurtherDocument
 
     End Sub
 
-    Public Async Function Save() As Task Implements ISaveable.SaveAsync
+    Public Async Function SaveAsync() As Task Implements ISaveable.SaveAsync
         Throw New NotImplementedException()
     End Function
 

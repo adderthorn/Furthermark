@@ -8,7 +8,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Loaded="Page_Loaded"
-    RequestedTheme="{x:Bind Settings.Theme, Mode=OneWay}"
     ActualThemeChanged="Page_ActualThemeChanged">
     <Page.Resources>
         <local:GridWidthConverter x:Key="gridWidthConverter"/>
@@ -16,11 +15,11 @@
         <local:TestConverter x:Key="testConverter"/>
     </Page.Resources>
     <Page.TopAppBar>
-        <CommandBar IsOpen="False" DefaultLabelPosition="Right">
+        <CommandBar x:Name="CmdBar" IsOpen="False" DefaultLabelPosition="Right">
             <CommandBar.Content>
                 <StackPanel Orientation="Horizontal" Margin="5,0">
                     <Slider Header="Editor Size" Value="{x:Bind SettingsPreviewSliderPosition, Mode=TwoWay}" Minimum="0"
-                            Maximum="100" Visibility="{x:Bind PreviewWebView.Visibility}" Width="200" Loaded="Slider_Loaded"
+                            Maximum="100" Width="200" Loaded="Slider_Loaded"
                             IsEnabled="{x:Bind Settings.ShowPreviewBoolean, Mode=OneWay}"/>
                     <Button Click="OnResetPreviewWidth" IsEnabled="{x:Bind Settings.ShowPreviewBoolean, Mode=OneWay}"
                             Margin="5,0" ToolTipService.ToolTip="Split Evenly">
@@ -49,10 +48,14 @@
                     </AppBarButton.KeyboardAccelerators>
                 </AppBarButton>
                 <AppBarSeparator/>
-                <AppBarButton Icon="Undo" Tag="Z" Label="Undo" IsEnabled="{x:Bind CanUndo, Mode=OneWay}" Click="OnClipboard"/>
-                <AppBarButton Icon="Cut" Tag="X" Label="Cut" IsEnabled="{x:Bind CanCopy, Mode=OneWay}" Click="OnClipboard"/>
-                <AppBarButton Icon="Copy" Tag="C" Label="Copy" IsEnabled="{x:Bind CanCopy, Mode=OneWay}" Click="OnClipboard"/>
-                <AppBarButton Icon="Paste" Tag="V" Label="Paste" IsEnabled="{x:Bind CanPaste, Mode=OneWay}" Click="OnClipboard"/>
+                <AppBarButton Icon="Undo" Tag="Z" Label="Undo" IsEnabled="{x:Bind CanUndo, Mode=OneWay}" Click="OnClipboardBtn">
+                    <AppBarButton.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="Z"/>
+                    </AppBarButton.KeyboardAccelerators>
+                </AppBarButton>
+                <AppBarButton Icon="Cut" Tag="X" Label="Cut" IsEnabled="{x:Bind CanCopy, Mode=OneWay}" Click="OnClipboardBtn"/>
+                <AppBarButton Icon="Copy" Tag="C" Label="Copy" IsEnabled="{x:Bind CanCopy, Mode=OneWay}" Click="OnClipboardBtn"/>
+                <AppBarButton Icon="Paste" Tag="V" Label="Paste" IsEnabled="{x:Bind CanPaste, Mode=OneWay}" Click="OnClipboardBtn"/>
                 <AppBarSeparator/>
                 <AppBarButton Icon="Bold" Tag="Bold" Label="Bold" AccessKey="B" Click="OnFormat">
                     <AppBarButton.KeyboardAccelerators>
@@ -67,15 +70,15 @@
                 <AppBarButton Icon="Message" Tag="Quote" Label="Quote" Visibility="Collapsed" Click="OnFormat"/>
                 <AppBarButton Icon="Remote" Tag="Code" Label="Code" Visibility="Collapsed" Click="OnFormat"/>
                 <AppBarSeparator/>
-                <AppBarButton Icon="HideBcc" Label="Insert Horizontal Rule" Tag="HR" Click="OnInsert"/>
-                <AppBarButton Icon="Clock" Label="Insert Timestamp" Tag="Timestamp" Click="OnInsert"
+                <AppBarButton Icon="HideBcc" Label="Insert Horizontal Rule" Tag="HR" Click="OnInsertBtn"/>
+                <AppBarButton Icon="Clock" Label="Insert Timestamp" Tag="Timestamp" Click="OnInsertBtn"
                               ToolTipService.ToolTip="Insert Timestamp (Ctrl+T)">
                     <AppBarButton.KeyboardAccelerators>
                         <KeyboardAccelerator Modifiers="Control" Key="T"/>
                     </AppBarButton.KeyboardAccelerators>
                 </AppBarButton>
-                <AppBarButton Icon="Find" Label="Find Text" ToolTipService.ToolTip="Find (Ctrl+F)"
-                              AllowFocusOnInteraction="True">
+                <AppBarButton x:Name="FindButton" Icon="Find" Label="Find Text"
+                              ToolTipService.ToolTip="Find (Ctrl+F)" AllowFocusOnInteraction="True">
                     <AppBarButton.KeyboardAccelerators>
                         <KeyboardAccelerator Modifiers="Control" Key="F"/>
                     </AppBarButton.KeyboardAccelerators>
@@ -117,101 +120,109 @@
                 <AppBarButton Icon="PreviewLink" Label="Copy HTML" Click="OnCopyHTML"/>
                 <AppBarButton Visibility="Collapsed" Icon="Share" Label="Share To"/>
                 <AppBarSeparator/>
-                <AppBarButton Icon="Setting" Label="Settings" AllowFocusOnInteraction="True">
-                    <AppBarButton.Flyout>
-                        <Flyout>
-                            <StackPanel Orientation="Vertical" Width="200" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}"
-                                        Margin="-15" Padding="15">
-                                <TextBlock Text="Editor Font" Foreground="{ThemeResource AppBarItemForegroundThemeBrush}"/>
-                                <ComboBox HorizontalAlignment="Stretch" Margin="10" ItemsSource="{x:Bind FontList, Mode=OneTime}"
-                                          SelectedItem="{x:Bind Settings.EditorFont, Mode=TwoWay}"/>
-                                <TextBlock Text="Font Size" Foreground="{ThemeResource AppBarItemForegroundThemeBrush}"/>
-                                <ComboBox x:Name="FontSizeComboBox" HorizontalAlignment="Left" Margin="10" ItemsSource="{x:Bind FontSizes, Mode=OneTime}"
-                                          SelectedItem="{x:Bind Settings.FontSize, Mode=TwoWay}"/>
-                                <CheckBox Margin="10" Content="Enable Spell Check" IsChecked="{x:Bind Settings.SpellCheck, Mode=TwoWay}"/>
-                                <TextBlock Text="Theme" Foreground="{ThemeResource AppBarItemForegroundThemeBrush}"/>
-                                <StackPanel Orientation="Vertical">
-                                    <RadioButton Content="Default" IsEnabled="{x:Bind CanChangeTheme, Mode=OneWay}"
-                                                 IsChecked="{x:Bind Settings.Theme, Converter={StaticResource themeModeConverter}, ConverterParameter=Default, Mode=TwoWay}"/>
-                                    <RadioButton Content="Light" IsEnabled="{x:Bind CanChangeTheme, Mode=OneWay}"
-                                                 IsChecked="{x:Bind Settings.Theme, Converter={StaticResource themeModeConverter}, ConverterParameter=Light, Mode=TwoWay}"/>
-                                    <RadioButton Content="Dark" IsEnabled="{x:Bind CanChangeTheme, Mode=OneWay}"
-                                                 IsChecked="{x:Bind Settings.Theme, Converter={StaticResource themeModeConverter}, ConverterParameter=Dark, Mode=TwoWay}"/>
-                                </StackPanel>
-                                <MenuFlyoutSeparator Grid.Column="0" Grid.Row="5"/>
-                                <Button HorizontalAlignment="Stretch" Content="Edit CSS" Click="EditCssButton_Click"/>
-                            </StackPanel>
-                        </Flyout>
-                    </AppBarButton.Flyout>
-                </AppBarButton>
+                <AppBarButton Icon="Setting" Label="Settings" Click="SettingsButton_Click" AllowFocusOnInteraction="True"/>
             </CommandBar.SecondaryCommands>
         </CommandBar>
     </Page.TopAppBar>
-    <Grid x:Name="MainGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CanDrag="False"
+    <SplitView x:Name="SettingMenu" DisplayMode="Overlay" PanePlacement="Right" IsPaneOpen="False" >
+        <SplitView.Pane>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Vertical" Margin="20" Grid.Row="0" Grid.Column="0">
+                    <TextBlock Text="Editor Font" Foreground="{ThemeResource AppBarItemForegroundThemeBrush}"/>
+                    <ComboBox HorizontalAlignment="Stretch" Margin="10" ItemsSource="{x:Bind FontList, Mode=OneTime}"
+                                          SelectedItem="{x:Bind Settings.EditorFont, Mode=TwoWay}"/>
+                    <TextBlock Text="Font Size" Foreground="{ThemeResource AppBarItemForegroundThemeBrush}"/>
+                    <ComboBox x:Name="FontSizeComboBox" HorizontalAlignment="Left" Margin="10" ItemsSource="{x:Bind FontSizes, Mode=OneTime}"
+                                          SelectedItem="{x:Bind Settings.FontSize, Mode=TwoWay}"/>
+                    <CheckBox Margin="10" Content="Enable Spell Check" IsChecked="{x:Bind Settings.SpellCheck, Mode=TwoWay}"/>
+                    <TextBlock Text="Theme" Foreground="{ThemeResource AppBarItemForegroundThemeBrush}"/>
+                    <StackPanel Orientation="Vertical">
+                        <RadioButton Content="Default" IsEnabled="{x:Bind CanChangeTheme, Mode=OneWay}"
+                                                 IsChecked="{x:Bind Settings.Theme, Converter={StaticResource themeModeConverter}, ConverterParameter=Default, Mode=TwoWay}"/>
+                        <RadioButton Content="Light" IsEnabled="{x:Bind CanChangeTheme, Mode=OneWay}"
+                                                 IsChecked="{x:Bind Settings.Theme, Converter={StaticResource themeModeConverter}, ConverterParameter=Light, Mode=TwoWay}"/>
+                        <RadioButton Content="Dark" IsEnabled="{x:Bind CanChangeTheme, Mode=OneWay}"
+                                                 IsChecked="{x:Bind Settings.Theme, Converter={StaticResource themeModeConverter}, ConverterParameter=Dark, Mode=TwoWay}"/>
+                    </StackPanel>
+                    <Button HorizontalAlignment="Stretch" Margin="10" Content="Edit CSS" Click="EditCssButton_Click"/>
+                    <!--<ComboBox HorizontalAlignment="Stretch" Margin="10" ItemsSource="{x:Bind TimestampFormats,Mode=OneWay}"
+                                  SelectedItem="{x:Bind Settings.TimestampFormat, Mode=TwoWay}"/>-->
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="0" Margin="10">
+                    <HyperlinkButton HorizontalAlignment="Center" Content="About Furthermark" Click="AboutButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </SplitView.Pane>
+        <Grid x:Name="MainGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CanDrag="False"
           ManipulationDelta="Grid_ManipulationDelta">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="{x:Bind LineCountWidth, Mode=OneWay, Converter={StaticResource gridWidthConverter}}"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <!--<local:TabControl Grid.Row="0" Grid.ColumnSpan="4" HorizontalAlignment="Left" Width="200" FileName="Thing"/>-->
-        <TextBox AcceptsReturn="True" Margin="0" Padding="0,10,0,0" Grid.Column="0" Grid.Row="1" IsReadOnly="True"
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{x:Bind LineCountWidth, Mode=OneWay, Converter={StaticResource gridWidthConverter}}"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <!--<local:TabControl Grid.Row="0" Grid.ColumnSpan="4" HorizontalAlignment="Left" Width="200" FileName="Thing"/>-->
+            <TextBox AcceptsReturn="True" Margin="0" Padding="0,10,0,0" Grid.Column="0" Grid.Row="1" IsReadOnly="True"
                  IsEnabled="True" Text="{x:Bind LineCountText, Mode=OneWay}" x:Name="LineBox"
                  FontFamily="{x:Bind Editor.FontFamily}" FontSize="{x:Bind Editor.FontSize}"
                  ScrollViewer.VerticalScrollBarVisibility="Hidden" Visibility="Collapsed"/>
-        <local:FurtherEditBox Grid.Column="1" Grid.Row="1" AcceptsReturn="True" Padding="5,10,5,5" x:Name="Editor" BorderThickness="0"
+            <local:FurtherEditBox Grid.Column="1" Grid.Row="1" AcceptsReturn="True" Padding="5,10,5,5" x:Name="Editor" BorderThickness="0"
                               TextChanged="Editor_TextChanged" TextWrapping="{x:Bind Settings.WrapText, Mode=OneWay}" AllowDrop="True"
                               FontFamily="{x:Bind Settings.EditorFont, Mode=OneWay, Converter={StaticResource testConverter}}"
                               ScrollViewer.VerticalScrollBarVisibility="Visible" DragOver="Editor_DragOver" Drop="Editor_Drop"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto" SelectionChanged="Editor_SelectionChanged"
                               Loaded="Editor_Loaded" PreviewKeyDown="TextBox_KeyDown" Paste="Editor_Paste"
                               FontSize="{x:Bind Settings.FontSize, Mode=OneWay}" IsSpellCheckEnabled="{x:Bind Settings.SpellCheck, Mode=OneWay}"/>
-        <Rectangle x:Name="ResizerRect" Grid.Column="2" Grid.Row="1" Fill="{StaticResource SystemControlForegroundAccentBrush}" Width="3"
+            <Rectangle x:Name="ResizerRect" Grid.Column="2" Grid.Row="1" Fill="{StaticResource SystemControlForegroundAccentBrush}" Width="3"
                    PointerEntered="ResizerRect_PointerEntered" PointerExited="ResizerRect_PointerExited" CanDrag="False" DoubleTapped="ResizerRect_DoubleTapped"/>
-        <WebView Grid.Column="3" Grid.Row="1" x:Name="PreviewWebView" Margin="5" NavigationStarting="PreviewWebView_NavigationStarting"
+            <WebView Grid.Column="3" Grid.Row="1" x:Name="PreviewWebView" Margin="5" NavigationStarting="PreviewWebView_NavigationStarting"
                  NavigationCompleted="PreviewWebView_NavigationCompleted" NavigationFailed="PreviewWebView_NavigationFailed"
                  Visibility="{x:Bind Settings.ShowPreview, Mode=OneWay}" Width="{x:Bind PreviewWidth, Mode=OneWay}" CanDrag="False"/>
-        <Grid Grid.Row="2" Grid.ColumnSpan="4" Background="{ThemeResource SystemControlForegroundAccentBrush}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="10*"/>
-                <ColumnDefinition Width="6*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <StackPanel.Resources>
-                    <Storyboard x:Name="RaiseStatusText">
-                        <FadeInThemeAnimation TargetName="StatusTextTextBlock" Duration="1000"/>
-                    </Storyboard>
-                    <Storyboard x:Name="ExitStatusText">
-                        <FadeOutThemeAnimation TargetName="StatusTextTextBlock" Duration="1000"/>
-                    </Storyboard>
-                </StackPanel.Resources>
-                <TextBlock Margin="10,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Words"/>
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind WordCount, Mode=OneWay}"/>
-                <TextBlock Margin="5,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Lines"/>
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Lines, Mode=OneWay}"/>
-                <TextBlock Margin="5,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Length"/>
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Length, Mode=OneWay}"/>
-                <TextBlock Margin="50,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" x:Name="StatusTextTextBlock"
+            <Grid Grid.Row="2" Grid.ColumnSpan="4" Background="{ThemeResource SystemControlForegroundAccentBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="6*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <StackPanel.Resources>
+                        <Storyboard x:Name="RaiseStatusText">
+                            <FadeInThemeAnimation TargetName="StatusTextTextBlock" Duration="1000"/>
+                        </Storyboard>
+                        <Storyboard x:Name="ExitStatusText">
+                            <FadeOutThemeAnimation TargetName="StatusTextTextBlock" Duration="1000"/>
+                        </Storyboard>
+                    </StackPanel.Resources>
+                    <TextBlock Margin="10,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Words"/>
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind WordCount, Mode=OneWay}"/>
+                    <TextBlock Margin="5,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Lines"/>
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Lines, Mode=OneWay}"/>
+                    <TextBlock Margin="5,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Length"/>
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Length, Mode=OneWay}"/>
+                    <TextBlock Margin="50,2,2,2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" x:Name="StatusTextTextBlock"
                            Text="{x:Bind StatusText, Mode=OneWay}"/>
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Ln"/>
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Line, Mode=OneWay}"/>
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Col"/>
-                <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Col, Mode=OneWay}"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2" HorizontalAlignment="Center" Orientation="Horizontal" PointerPressed="StatusBarItem_Tapped" PointerReleased="StatusBarItem_UnTapped"
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Ln"/>
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Line, Mode=OneWay}"/>
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="Col"/>
+                    <TextBlock Margin="2" Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind Col, Mode=OneWay}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center" Orientation="Horizontal" PointerPressed="StatusBarItem_Tapped" PointerReleased="StatusBarItem_UnTapped"
                         PointerEntered="StatusBarItem_PointerEntered" PointerExited="StatusBarItem_PointerExited">
-                <TextBlock Margin="2" Width="40" TextAlignment="Center"
+                    <TextBlock Margin="2" Width="40" TextAlignment="Center"
                            Foreground="{StaticResource AppBarBackgroundThemeBrush}" Text="{x:Bind InsOvr, Mode=OneWay}"/>
-            </StackPanel>
+                </StackPanel>
+            </Grid>
         </Grid>
-    </Grid>
+    </SplitView>
 </Page>

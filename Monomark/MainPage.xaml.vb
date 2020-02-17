@@ -3,19 +3,15 @@
 Imports System.Text.RegularExpressions
 Imports Windows.System
 Imports Markdig
-Imports Windows.ApplicationModel.Resources
 Imports Windows.ApplicationModel.DataTransfer
 Imports WinRTXamlToolkit.Controls.Extensions
 Imports Windows.UI.Text
-Imports Windows.UI.Xaml
-Imports Windows.UI.Xaml.Controls
 Imports Windows.Storage
 Imports Windows.Storage.Pickers
 Imports Windows.UI.Core
 Imports Windows.UI.Popups
 Imports Windows.UI.Notifications
 Imports Windows.UI.Core.Preview
-Imports System.Threading
 Imports Windows.UI
 Imports Furthermark.FurtherFormatter
 
@@ -29,7 +25,7 @@ Public NotInheritable Class MainPage
 
 #Region "Private Variables & Constants"
     'TODO: Allow choice between spaces or actual tab character
-    Private Const TAB_CHAR As String = "    "
+    Private Const TAB_CHAR As String = vbTab
     Private Const HR_CHAR As String = vbLf & "---------------" & vbLf
     Private Const SCROLL_TO As String = "window.scrollTo({0},{1});"
     Private Const SELECT_ALL As String = "window.getSelection().selectAllChildren(document.getElementById('main'));"
@@ -50,7 +46,7 @@ Public NotInheritable Class MainPage
     Private _CanCopy As Boolean = False
     Private _CanPaste As Boolean = False
     Private _IsOvertype As Boolean = False
-    Private OpenedFile As StorageFile
+    Private OpenedFile As IStorageFile
     Private FileHash As Byte() = GetMd5(String.Empty)
     Private ReadOnly FontList As ObservableCollection(Of String) =
         New ObservableCollection(Of String)(Microsoft.Graphics.Canvas.Text.CanvasTextFormat.GetSystemFontFamilies().OrderBy(Function(f) f))
@@ -60,6 +56,8 @@ Public NotInheritable Class MainPage
     Private NeedToRaiseUpdateClipboard As Boolean
     Private Formatter As Formatter
     Private _IsPageLoading As Boolean = True
+    Private _Settings As Settings = New Settings()
+    Private IsTyping As Boolean = False
 #End Region
 
 #Region "Event Handlers"
@@ -69,6 +67,13 @@ Public NotInheritable Class MainPage
 
 #Region "Public Properties"
     Public Property Settings As Settings
+        Get
+            Return _Settings
+        End Get
+        Set(value As Settings)
+            _Settings = Settings
+        End Set
+    End Property
     Public Property LineCountText As String
     Public Property LineCountWidth As Double
     Public ReadOnly Property WordCount As String
@@ -195,6 +200,15 @@ Public NotInheritable Class MainPage
             Return Not IsPageLoading
         End Get
     End Property
+    Public ReadOnly Property TimestampFormats As ObservableCollection(Of TimestampFormat)
+        Get
+            Return New ObservableCollection(Of TimestampFormat) From {
+                New TimestampFormat("D"),
+                New TimestampFormat("f"),
+                New TimestampFormat("g")
+            }
+        End Get
+    End Property
 #End Region
 
 #Region "Constructors"
@@ -203,19 +217,38 @@ Public NotInheritable Class MainPage
         InitializeComponent()
         ' Add any initialization after the InitializeComponent() call.
         UpdaterTimer = New DispatcherTimer() With {.Interval = TimeSpan.FromSeconds(REFRESH_TIMEOUT)}
-        SaveSettingsTimer = New DispatcherTimer() With {.Interval = TimeSpan.FromSeconds(SAVE_TIMEOUT)}
         AutoSaveTimer = New DispatcherTimer With {.Interval = TimeSpan.FromSeconds(FILE_SAVE_TIMEOUT)}
         Formatter = New Formatter(Editor.Document)
 
         AddHandler UpdaterTimer.Tick, AddressOf OnUpdateTick
-        AddHandler SaveSettingsTimer.Tick, AddressOf OnSaveSettingsTick
         AddHandler AutoSaveTimer.Tick, AddressOf OnAutoSaveTick
         AddHandler Window.Current.CoreWindow.SizeChanged, AddressOf RaiseEventWindowResized
         AddHandler Clipboard.ContentChanged, AddressOf RaiseClipboardContentChanged
         AddHandler Window.Current.Activated, AddressOf RaiseWindowActivated
         AddHandler Editor.OnFormatEventHandler, AddressOf OnFormatHotkey
         AddHandler SystemNavigationManagerPreview.GetForCurrentView().CloseRequested, AddressOf OnCloseRequested
-        LoadSettings()
+        Dim AnUiSettings = New UISettings()
+        AddHandler AnUiSettings.ColorValuesChanged, Sub(s, e)
+                                                        If Settings.Theme = ElementTheme.Default Then
+                                                            Page_ActualThemeChanged(Nothing, e)
+                                                        End If
+                                                    End Sub
+        If Settings.AutoSave Then AutoSaveTimer.Start()
+        TogglePreview(Settings.ShowPreview = Visibility.Visible)
+        AddHandler Me.UpdateDocument, Sub(s, e)
+                                          UpdatePreview(e.ForceUpdate)
+                                          Formatter.Format(e.ForceUpdate)
+                                          Editor.Document.EndUndoGroup()
+                                          IsTyping = False
+                                      End Sub
+        AddHandler Settings.PropertyChanged, Async Sub(s, e)
+                                                 Select Case e.PropertyName
+                                                     Case "AutoSave"
+                                                         If Settings.AutoSave Then AutoSaveTimer.Start() Else AutoSaveTimer.Stop()
+                                                     Case "Theme"
+                                                         Await SetTheme(Settings.Theme)
+                                                 End Select
+                                             End Sub
     End Sub
 
     Private Async Sub OnCloseRequested(sender As Object, e As SystemNavigationCloseRequestedPreviewEventArgs)
@@ -243,36 +276,11 @@ Public NotInheritable Class MainPage
         End If
     End Sub
 
-    Private Async Sub LoadSettings()
-        Dim AnUiSettings = New UISettings()
-        If Settings Is Nothing Then Settings = New Settings()
-        Settings = Await Settings.LoadAsync()
-        If Settings.IsDirty Then
-            Await Settings.SaveAsync()
-        End If
-        AddHandler Settings.Dirtied, AddressOf OnSettingsDirtied
-        AddHandler AnUiSettings.ColorValuesChanged, Sub(s, e)
-                                                        If Settings.Theme = ElementTheme.Default Then
-                                                            Page_ActualThemeChanged(Nothing, e)
-                                                        End If
-                                                    End Sub
-        If Settings.AutoSave Then AutoSaveTimer.Start()
-        RaisePropertyChanged(NameOf(Settings))
-        TogglePreview(Settings.ShowPreview)
-        Select Case Settings.Theme
-            Case ElementTheme.Default
-                If (AnUiSettings.GetColorValue(UIColorType.Background) = Colors.Black) Then
-                    Editor.Style = CType(App.Current.Resources("FurtherEditBoxStyleDark"), Style)
-                End If
-            Case ElementTheme.Light
-                'We are fine doing nothing
-            Case ElementTheme.Dark
-                Editor.Style = CType(App.Current.Resources("FurtherEditBoxStyleDark"), Style)
-        End Select
-        AddHandler Me.UpdateDocument, Sub(s, e)
-                                          UpdatePreview(e.ForceUpdate)
-                                          Formatter.Format(e.ForceUpdate)
-                                      End Sub
+    Public Sub NavigateToPageWithDocument(ByVal Document As IStorageFile)
+        ' It happens when it happens, no need to await it...
+#Disable Warning BC42358 ' Because this call is not awaited, execution of the current method continues before the call is completed
+        OpenFile(Document)
+#Enable Warning BC42358 ' Because this call is not awaited, execution of the current method continues before the call is completed
     End Sub
 
     Private Async Sub RaiseClipboardContentChanged(sender As Object, e As Object)
@@ -286,11 +294,6 @@ Public NotInheritable Class MainPage
     Private Sub OnUpdateTick(sender As Object, e As Object)
         UpdaterTimer.Stop()
         RaiseEvent UpdateDocument(sender, New FurtherFormatter.FormatterEventArgs())
-    End Sub
-
-    Private Async Sub OnSaveSettingsTick(ByVal sender As Object, ByVal e As Object)
-        SaveSettingsTimer.Stop()
-        Await Settings.SaveAsync()
     End Sub
 
     Private Async Sub OnAutoSaveTick(ByVal sender As Object, ByVal e As Object)
@@ -333,35 +336,43 @@ Public NotInheritable Class MainPage
         Select Case e.Key
             Case VirtualKey.Tab
                 Dim StartPos = ThisTextBox.Document.Selection.StartPosition
-                Dim NewLength As Integer
-                If CoreWindow.GetForCurrentThread().GetKeyState(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) Then
-                    If StartPos >= TAB_CHAR.Length Then
-                        NewLength = TAB_CHAR.Length * -1
+                If IsKeyPressed(VirtualKey.Shift) Then
+                    If StartPos > TAB_CHAR.Length Then
+                        Dim Range = ThisTextBox.Document.GetRange(StartPos - TAB_CHAR.Length, StartPos)
+                        Range.SetText(TextSetOptions.None, String.Empty)
                     End If
                 Else
-                    NewLength = TAB_CHAR.Length
+                    ThisTextBox.Document.Selection.SetText(TextSetOptions.None, TAB_CHAR)
+                    ThisTextBox.Document.Selection.StartPosition = StartPos + TAB_CHAR.Length
                 End If
-                'ThisTextBox.Document.SetText(TextSetOptions.None, NewText)
-                'ThisTextBox.Document.Selection.StartPosition = StartPos + NewLength
-                'RaiseEvent UpdateDocument(Me, New FurtherFormatter.FormatterEventArgs(ForceUpdate:=True))
-                'e.Handled = True
-                ThisTextBox.Document.Selection.SetText(TextSetOptions.None, TAB_CHAR)
-                ThisTextBox.Document.Selection.StartPosition = StartPos + TAB_CHAR.Length
                 e.Handled = True
             Case VirtualKey.Insert
                 _IsOvertype = Not ThisTextBox.Document.Selection.Options.HasFlag(SelectionOptions.Overtype)
                 RaisePropertyChanged(NameOf(InsOvr))
+            Case VirtualKey.Z
+                If IsKeyPressed(VirtualKey.Control) Then
+                    OnClipboard("Z")
+                    e.Handled = True
+                End If
+            Case VirtualKey.Y
+                If IsKeyPressed(VirtualKey.Control) Then
+                    OnClipboard("Y")
+                    e.Handled = True
+                End If
+            Case VirtualKey.T
+                If IsKeyPressed(VirtualKey.Control) Then
+                    OnInsert("Timestamp")
+                    e.Handled = True
+                End If
+            Case VirtualKey.F5
+                TogglePreview(Not PreviewToggleButton.IsChecked)
+                e.Handled = True
+            Case VirtualKey.F
+                If IsKeyPressed(VirtualKey.Control) Then
+                    FindButton.Flyout.ShowAt(CmdBar)
+                    e.Handled = True
+                End If
         End Select
-    End Sub
-
-    Protected Sub OnSettingsDirtied(ByVal sender As Object, ByVal e As EventArgs)
-        SaveSettingsTimer.Stop()
-        SaveSettingsTimer.Start()
-        If Settings.AutoSave Then
-            AutoSaveTimer.Start()
-        Else
-            AutoSaveTimer.Stop()
-        End If
     End Sub
 
     Private Async Sub OnNew(sender As Object, e As RoutedEventArgs)
@@ -396,14 +407,21 @@ Public NotInheritable Class MainPage
         Editor.Document.SetText(TextSetOptions.None, String.Empty)
         Formatter.Format(ForceUpdate:=True)
         IsDirty = False
+        AppInstance.Unregister()
+        SetTitleBar()
     End Sub
 
     Private Async Sub Page_Loaded(sender As Object, e As RoutedEventArgs)
         SetTitleBar()
-        Await NavigateWithCssAsync()
+        Await SetTheme(Settings.Theme)
+        AddHandler GetObjectScrollViewer(Editor).ViewChanged, AddressOf Editor_ViewChanged
     End Sub
 
     Private Sub Editor_TextChanged(sender As Object, e As RoutedEventArgs)
+        If Not IsTyping Then
+            Editor.Document.BeginUndoGroup()
+            IsTyping = True
+        End If
         UpdaterTimer.Stop()
         UpdaterTimer.Start()
     End Sub
@@ -438,7 +456,7 @@ Public NotInheritable Class MainPage
     End Sub
 
     Private Sub Editor_Loaded(sender As Object, e As RoutedEventArgs)
-        AddHandler GetObjectScrollViewer(Editor).ViewChanged, AddressOf Editor_ViewChanged
+        'AddHandler GetObjectScrollViewer(Editor).ViewChanged, AddressOf Editor_ViewChanged
     End Sub
 
     Private Function GetObjectScrollViewer(ByVal DepObject As DependencyObject) As ScrollViewer
@@ -467,11 +485,11 @@ Public NotInheritable Class MainPage
     End Sub
 
     Private Sub PreviewToggleButton_Click(sender As Object, e As RoutedEventArgs)
-        TogglePreview(Nothing)
+        TogglePreview()
     End Sub
 
     Private Sub Editor_SelectionChanged(sender As Object, e As RoutedEventArgs)
-        If Not TypeOf sender Is FurtherEditBox Then Return
+        Dim t As New RichEditBox
         'UpdaterTimer.Stop()
         'UpdaterTimer.Start()
         Dim ThisEditor = CType(sender, FurtherEditBox)
@@ -527,19 +545,27 @@ Public NotInheritable Class MainPage
         Await OpenFile(File)
     End Function
 
-    Private Async Function OpenFile(ByVal File As StorageFile) As Task
+    Private Async Function OpenFile(ByVal File As IStorageFile) As Task
         If File Is Nothing Then Return
-        Dim Text As String = Await FileIO.ReadTextAsync(File)
-        Editor.Document.SetText(TextSetOptions.None, Text)
-        RaiseEvent UpdateDocument(Me, New FurtherFormatter.FormatterEventArgs(ForceUpdate:=True))
-        FileHash = Nothing
-        If File.Attributes.HasFlag(FileAttributes.ReadOnly) Then
-            IsDirty = True
+        ' Test to see if file is opened in a different instance
+        Dim Instance = AppInstance.FindOrRegisterInstanceForKey(File.Name)
+        If Instance.IsCurrentInstance Then
+            Dim Text As String = Await FileIO.ReadTextAsync(File)
+            Editor.Document.SetText(TextSetOptions.None, Text)
+            RaiseEvent UpdateDocument(Me, New FurtherFormatter.FormatterEventArgs(ForceUpdate:=True))
+            FileHash = Nothing
+            If File.Attributes.HasFlag(FileAttributes.ReadOnly) Then
+                IsDirty = True
+            Else
+                IsDirty = False
+                OpenedFile = File
+            End If
+            SetTitleBar()
         Else
-            IsDirty = False
-            OpenedFile = File
+            ' Some other instance has this file
+            Dim Dlg As New MessageDialog("This file is already opened with Furthermark.")
+            Await Dlg.ShowAsync()
         End If
-        SetTitleBar()
     End Function
 
     Private Sub SetTitleBar()
@@ -554,16 +580,19 @@ Public NotInheritable Class MainPage
         AppView.Title = Title
     End Sub
 
-    Private Sub OnInsert(sender As Object, e As RoutedEventArgs)
+    Private Sub OnInsertBtn(sender As Object, e As RoutedEventArgs)
         If Not TypeOf sender Is AppBarButton Then Return
         Dim SenderButton As AppBarButton = CType(sender, AppBarButton)
+        OnInsert(CStr(SenderButton.Tag))
+    End Sub
 
+    Private Sub OnInsert(ByVal Tag As String)
         Dim Pos As Integer = Editor.Document.Selection.StartPosition
         Dim Stamp As String
 
-        Select Case CStr(SenderButton.Tag)
+        Select Case Tag
             Case "Timestamp"
-                Stamp = DateTime.Now.ToLongDateString() & " " & DateTime.Now.ToShortTimeString()
+                Stamp = DateTime.Now.ToString(Settings.TimestampFormatString)
             Case "HR"
                 Stamp = HR_CHAR
             Case Else
@@ -641,7 +670,7 @@ Public NotInheritable Class MainPage
 
     Private Async Sub OnSave(sender As Object, e As RoutedEventArgs)
         Await Save()
-        Dim Message As String = String.Format("Saved - {0} - {1} {2}.", OpenedFile.DisplayName, DateTime.Now.ToShortDateString(), DateTime.Now.ToShortTimeString())
+        Dim Message As String = String.Format("Saved - {0} - {1} {2}.", OpenedFile.Name, DateTime.Now.ToShortDateString(), DateTime.Now.ToShortTimeString())
         ShowStatusNotification(Message)
     End Sub
 
@@ -679,22 +708,36 @@ Public NotInheritable Class MainPage
         RaisePropertyChanged(NameOf(PreviewWidth))
     End Sub
 
-    Private Sub OnClipboard(sender As Object, e As RoutedEventArgs)
+    Private Sub OnClipboard(ByVal Tag As String)
+        Select Case Tag
+            Case "C"
+                Editor.Document.Selection.Copy()
+            Case "X"
+                Editor.Document.Selection.Cut()
+            Case "V"
+                'Per function notes, zero represents the best format
+                '13 represemts CF_UNICODETEXT for plain text
+                Editor.Document.Selection.Paste(format:=13)
+            Case "Z"
+                With Editor.Document
+                    Dim i = 0
+                    While i <= 2 And .CanUndo
+                        .Undo()
+                        i += 1
+                    End While
+                End With
+            Case "Y"
+                With Editor.Document
+                    If .CanRedo Then .Redo()
+                End With
+        End Select
+    End Sub
+
+    Private Sub OnClipboardBtn(sender As Object, e As RoutedEventArgs)
         If Not TypeOf sender Is AppBarButton Then Return
         Dim Btn As AppBarButton = CType(sender, AppBarButton)
         Try
-            Select Case CStr(Btn.Tag)
-                Case "C"
-                    Editor.Document.Selection.Copy()
-                Case "X"
-                    Editor.Document.Selection.Cut()
-                Case "V"
-                    'Per function notes, zero represents the best format
-                    '13 represemts CF_UNICODETEXT for plain text
-                    Editor.Document.Selection.Paste(format:=13)
-                Case "Z"
-                    Editor.Document.Undo()
-            End Select
+            OnClipboard(CStr(Btn.Tag))
         Catch ex As Exception
             Dim Msg As String = String.Format("Error: {0}", ex.Message)
             ShowStatusNotification(Msg)
@@ -740,7 +783,7 @@ Public NotInheritable Class MainPage
     End Sub
 
     Private Sub OnPreviewToggleHotkey(sender As KeyboardAccelerator, args As KeyboardAcceleratorInvokedEventArgs)
-        TogglePreview(SetVis:=Nothing)
+        TogglePreview()
     End Sub
 
     'This needs some more help
@@ -749,9 +792,9 @@ Public NotInheritable Class MainPage
         Dim ClickedButton = CType(sender, Button)
         Select Case ClickedButton.Tag.ToString()
             Case "Next"
-                FindText(SearchMethods.Next)
+                FindText(SearchMethod.Next)
             Case "Prev"
-                FindText(SearchMethods.Previous)
+                FindText(SearchMethod.Previous)
             Case Else
                 Return
         End Select
@@ -760,15 +803,15 @@ Public NotInheritable Class MainPage
     Private Sub FindTextBox_PreviewKeyDown(sender As Object, e As KeyRoutedEventArgs)
         If e.Key = VirtualKey.Enter Then
             If CoreWindow.GetForCurrentThread().GetKeyState(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) Then
-                FindText(SearchMethods.Previous)
+                FindText(SearchMethod.Previous)
             Else
-                FindText(SearchMethods.Next)
+                FindText(SearchMethod.Next)
             End If
             e.Handled = True
         End If
     End Sub
 
-    Private Sub FindText(ByVal SearchMethod As SearchMethods)
+    Private Sub FindText(ByVal SearchMethod As SearchMethod)
         If String.IsNullOrWhiteSpace(FindTextBox.Text) Then
             Return
         End If
@@ -776,10 +819,10 @@ Public NotInheritable Class MainPage
         FindText = FindTextBox.Text
         Editor.Document.GetText(TextGetOptions.UseLf, EditorText)
         Select Case SearchMethod
-            Case SearchMethods.Next
+            Case SearchMethod.Next
                 StartPos = Editor.Document.Selection.EndPosition
                 EndPos = EditorText.Length
-            Case SearchMethods.Previous
+            Case SearchMethod.Previous
                 StartPos = Editor.Document.Selection.StartPosition
                 EndPos = 0
             Case Else
@@ -832,16 +875,14 @@ Public NotInheritable Class MainPage
         e.Handled = True
     End Sub
 
-    Private Sub TogglePreview(ByVal SetVis As Visibility?)
-        If SetVis Is Nothing Then
-            SetVis = Visibility.Collapsed
-            If PreviewToggleButton.IsChecked = True Then
-                SetVis = Visibility.Visible
-            End If
+    Private Sub TogglePreview(Optional ByVal IsVisible As Boolean? = Nothing)
+        If IsVisible Is Nothing Then
+            IsVisible = PreviewToggleButton.IsChecked
         End If
-        If Settings.ShowPreview <> SetVis.Value Then Settings.MakeDirty()
-        Settings.ShowPreview = SetVis.Value
-        ResizerRect.Visibility = SetVis.Value
+        Dim Vis As Visibility = Visibility.Collapsed
+        If IsVisible Then Vis = Visibility.Visible
+        Settings.ShowPreview = Vis
+        ResizerRect.Visibility = Vis
         PreviewToggleButton.IsChecked = Settings.ShowPreviewBoolean
     End Sub
 
@@ -893,9 +934,9 @@ Public NotInheritable Class MainPage
     Private Async Function NavigateWithCssAsync() As Task
         Dim CssStringTask As Task(Of String)
         If Settings.UseCustomCss Then
-            CssStringTask = LoadCssAsync(Me.ActualTheme)
+            CssStringTask = LoadCssAsync(Me.RequestedTheme)
         Else
-            CssStringTask = LoadDefaultCssAsync(Me.ActualTheme)
+            CssStringTask = LoadDefaultCssAsync(Me.RequestedTheme)
         End If
         Dim HtmlFile = Await StorageFile.GetFileFromApplicationUriAsync(New Uri("ms-appx:///WebAssets/Default.html"))
         Dim HtmlString = String.Empty
@@ -912,16 +953,34 @@ Public NotInheritable Class MainPage
     End Sub
 
     Private Async Sub Page_ActualThemeChanged(sender As FrameworkElement, args As Object)
-        Select Case Me.ActualTheme
+        Await Windows.ApplicationModel.Core.CoreApplication _
+            .MainView.CoreWindow.Dispatcher _
+            .RunAsync(CoreDispatcherPriority.Normal,
+                Async Sub()
+                    If Settings.Theme = ElementTheme.Default Then
+                        Await SetTheme(ElementTheme.Default)
+                    End If
+                End Sub)
+    End Sub
+
+    Private Async Function SetTheme(ByVal Theme As ElementTheme) As Task
+        Select Case Theme
             Case ElementTheme.Default
-                'This shouldn't be reached
+                Dim UISettings As New UISettings()
+                If UISettings.GetColorValue(UIColorType.Background) = Colors.Black Then
+                    Await SetTheme(ElementTheme.Dark)
+                Else
+                    Await SetTheme(ElementTheme.Light)
+                End If
+                Return
             Case ElementTheme.Light
                 Editor.Style = Nothing
             Case ElementTheme.Dark
                 Editor.Style = CType(App.Current.Resources("FurtherEditBoxStyleDark"), Style)
         End Select
+        Me.RequestedTheme = Theme
         Await NavigateWithCssAsync()
-    End Sub
+    End Function
 
     Private Sub PreviewWebView_NavigationFailed(sender As Object, e As WebViewNavigationFailedEventArgs)
         IsPageLoading = False
@@ -969,6 +1028,15 @@ Public NotInheritable Class MainPage
         Sp.Background = b
         _IsOvertype = Not _IsOvertype
         RaisePropertyChanged(NameOf(InsOvr))
+    End Sub
+
+    Private Sub SettingsButton_Click(sender As Object, e As RoutedEventArgs)
+        SettingMenu.IsPaneOpen = Not SettingMenu.IsPaneOpen
+    End Sub
+
+    Private Async Sub AboutButton_Click(sender As Object, e As RoutedEventArgs)
+        Dim Dlg = New AboutDialog()
+        Await Dlg.ShowAsync()
     End Sub
 #End Region
 
