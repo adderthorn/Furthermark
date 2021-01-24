@@ -41,11 +41,24 @@
                     <AppBarButton.KeyboardAccelerators>
                         <KeyboardAccelerator Modifiers="Control" Key="O"/>
                     </AppBarButton.KeyboardAccelerators>
+                    <AppBarButton.ContextFlyout>
+                        <MenuFlyout x:Name="RecentlyAccessedFilesMenu">
+                            <MenuFlyoutSeparator/>
+                            <MenuFlyoutItem Text="Clear List"/>
+                        </MenuFlyout>
+                    </AppBarButton.ContextFlyout>
                 </AppBarButton>
-                <AppBarButton Icon="Save" Label="Save" Click="OnSave" AccessKey="S" IsEnabled="{x:Bind IsDirty,Mode=OneWay}">
+                <AppBarButton x:Name="SaveButton" Icon="Save" Label="Save" Click="OnSave" AccessKey="S"
+                              IsEnabled="{x:Bind IsDirty,Mode=OneWay}">
                     <AppBarButton.KeyboardAccelerators>
                         <KeyboardAccelerator Modifiers="Control" Key="S"/>
                     </AppBarButton.KeyboardAccelerators>
+                    <AppBarButton.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Save" Icon="Save" Click="OnSave"/>
+                            <MenuFlyoutItem Text="Save As..." Click="OnSaveAs"/>
+                        </MenuFlyout>
+                    </AppBarButton.ContextFlyout>
                 </AppBarButton>
                 <AppBarSeparator/>
                 <AppBarButton Icon="Undo" Tag="Z" Label="Undo" IsEnabled="{x:Bind CanUndo, Mode=OneWay}" Click="OnClipboardBtn">

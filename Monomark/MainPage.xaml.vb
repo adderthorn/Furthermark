@@ -14,6 +14,9 @@ Imports Windows.UI.Notifications
 Imports Windows.UI.Core.Preview
 Imports Windows.UI
 Imports Furthermark.FurtherFormatter
+Imports Windows.Storage.Streams
+Imports System.Text
+Imports Windows.Storage.AccessCache
 
 #Region "Compiler Directives"
 #Const LOAD_DEMO = False
@@ -34,6 +37,7 @@ Public NotInheritable Class MainPage
     Private Const REFRESH_TIMEOUT As Double = 0.2D
     Private Const SAVE_TIMEOUT As Double = 2D
     Private Const FILE_SAVE_TIMEOUT As Double = 8D
+    Private Const CLEAR_LIST As String = "ClearList"
     Private ReadOnly UpdaterTimer As DispatcherTimer
     Private ReadOnly SaveSettingsTimer As DispatcherTimer
     Private ReadOnly AutoSaveTimer As DispatcherTimer
@@ -255,7 +259,7 @@ Public NotInheritable Class MainPage
         e.Handled = True
         If IsDirty Then
             Await YesNoCancel(Async Sub() 'Yes
-                                  Await Save()
+                                  Await SaveAsync()
                                   IsAppWindowActive = False
                                   App.Current.Exit()
                               End Sub,
@@ -299,7 +303,7 @@ Public NotInheritable Class MainPage
     Private Async Sub OnAutoSaveTick(ByVal sender As Object, ByVal e As Object)
         If Not OpenedFile Is Nothing _
             AndAlso IsDirty Then
-            Await Save()
+            Await SaveAsync()
         End If
     End Sub
 #End Region
@@ -378,7 +382,7 @@ Public NotInheritable Class MainPage
     Private Async Sub OnNew(sender As Object, e As RoutedEventArgs)
         If IsDirty Then
             Await YesNoCancel(Async Sub(Yes)
-                                  Await Save()
+                                  Await SaveAsync()
                                   NewDoc()
                               End Sub _
                               , Sub(No)
@@ -415,6 +419,7 @@ Public NotInheritable Class MainPage
         SetTitleBar()
         Await SetTheme(Settings.Theme)
         AddHandler GetObjectScrollViewer(Editor).ViewChanged, AddressOf Editor_ViewChanged
+        RefreshMRUs()
     End Sub
 
     Private Sub Editor_TextChanged(sender As Object, e As RoutedEventArgs)
@@ -522,7 +527,7 @@ Public NotInheritable Class MainPage
     Private Async Sub OnOpen(sender As Object, e As RoutedEventArgs)
         If IsDirty Then
             Await YesNoCancel(Async Sub(Yes)
-                                  Await Save()
+                                  Await SaveAsync()
                                   Await OpenFile()
                               End Sub _
                            , Async Sub(No)
@@ -536,8 +541,9 @@ Public NotInheritable Class MainPage
     Private Async Function OpenFile() As Task
         Dim Picker As New FileOpenPicker()
         With Picker
-            .FileTypeFilter.Add(".md")
             .FileTypeFilter.Add(".txt")
+            .FileTypeFilter.Add(".md")
+            .FileTypeFilter.Add(".markdown")
             .SuggestedStartLocation = PickerLocationId.DocumentsLibrary
             .ViewMode = PickerViewMode.List
         End With
@@ -550,7 +556,13 @@ Public NotInheritable Class MainPage
         ' Test to see if file is opened in a different instance
         Dim Instance = AppInstance.FindOrRegisterInstanceForKey(File.Name)
         If Instance.IsCurrentInstance Then
-            Dim Text As String = Await FileIO.ReadTextAsync(File)
+            Dim Text As String ' = Await FileIO.ReadTextAsync(File)
+            Dim Buffer As IBuffer = Await FileIO.ReadBufferAsync(File)
+            Using Reader As DataReader = DataReader.FromBuffer(Buffer)
+                Dim Content(CInt(Buffer.Length) - 1) As Byte
+                Reader.ReadBytes(Content)
+                Text = Encoding.UTF8.GetString(Content, 0, Content.Length)
+            End Using
             Editor.Document.SetText(TextSetOptions.None, Text)
             RaiseEvent UpdateDocument(Me, New FurtherFormatter.FormatterEventArgs(ForceUpdate:=True))
             FileHash = Nothing
@@ -560,6 +572,8 @@ Public NotInheritable Class MainPage
                 IsDirty = False
                 OpenedFile = File
             End If
+            'TODO: determine if we need to save the token
+            Dim Token As String = StorageApplicationPermissions.MostRecentlyUsedList.Add(File, File.Name)
             SetTitleBar()
         Else
             ' Some other instance has this file
@@ -655,40 +669,27 @@ Public NotInheritable Class MainPage
         End If
     End Sub
 
-    Private Async Sub GetSaveAsFileAsync()
-        Dim Picker As New FileSavePicker(), TextList As New List(Of String)
-        With TextList
-            .Add(".txt")
-            .Add(".md")
-        End With
-        With Picker
-            .FileTypeChoices.Add("Text", TextList)
-            .SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-        End With
-        OpenedFile = Await Picker.PickSaveFileAsync()
+    Private Async Sub OnSave(ByVal sender As Object, ByVal e As RoutedEventArgs)
+        Await SaveAsync()
+        Dim Message As String = String.Format("Saved - {0} - {1} {2}.", OpenedFile.Name,
+                                              DateTime.Now.ToShortDateString(), DateTime.Now.ToShortTimeString())
+        ShowStatusNotification(Message)
     End Sub
 
-    Private Async Sub OnSave(sender As Object, e As RoutedEventArgs)
-        Await Save()
-        Dim Message As String = String.Format("Saved - {0} - {1} {2}.", OpenedFile.Name, DateTime.Now.ToShortDateString(), DateTime.Now.ToShortTimeString())
+    Private Async Sub OnSaveAs(ByVal sender As Object, ByVal e As RoutedEventArgs)
+        Await SaveAsAsync()
+        Dim Message As String = String.Format("Saved As - {0} - {1} {2}.", OpenedFile.Name,
+                                              DateTime.Now.ToShortDateString(), DateTime.Now.ToShortTimeString())
         ShowStatusNotification(Message)
     End Sub
 
     ''' <summary>
     ''' Saves the Opened File
     ''' </summary>
-    Private Async Function Save() As Task
+    Private Async Function SaveAsync() As Task
         If OpenedFile Is Nothing Then
-            Dim Picker As New FileSavePicker(), TextList As New List(Of String)
-            With TextList
-                .Add(".txt")
-                .Add(".md")
-            End With
-            With Picker
-                .FileTypeChoices.Add("Text", TextList)
-                .SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-            End With
-            OpenedFile = Await Picker.PickSaveFileAsync()
+            Await SaveAsAsync()
+            Return
         End If
         Try
             IsDirty = False
@@ -698,6 +699,26 @@ Public NotInheritable Class MainPage
         Catch Ex As Exception
             Debug.WriteLine(Ex.Message)
         End Try
+    End Function
+
+    Private Async Function SaveAsAsync() As Task
+        Dim Picker As New FileSavePicker(), TextList As New List(Of String)
+        With TextList
+            .Add(".txt")
+            .Add(".md")
+            .Add(".markdown")
+        End With
+        With Picker
+            .FileTypeChoices.Add("Text", TextList)
+            .SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+        End With
+        Dim PickedFile = Await Picker.PickSaveFileAsync()
+        If Not PickedFile Is Nothing Then
+            OpenedFile = PickedFile
+            'TODO: token
+            Dim Token As String = StorageApplicationPermissions.MostRecentlyUsedList.Add(PickedFile, PickedFile.Name)
+            Await SaveAsync()
+        End If
     End Function
 
     Private Sub OnResetPreviewWidth(sender As Object, e As RoutedEventArgs)
@@ -918,7 +939,7 @@ Public NotInheritable Class MainPage
                 Dim OneFile As StorageFile = CType(Items.FirstOrDefault(), StorageFile)
                 If IsDirty Then
                     Await YesNoCancel(Async Sub(Yes)
-                                          Await Save()
+                                          Await SaveAsync()
                                           Await OpenFile(OneFile)
                                       End Sub,
                                       Async Sub(No)
@@ -1037,6 +1058,53 @@ Public NotInheritable Class MainPage
     Private Async Sub AboutButton_Click(sender As Object, e As RoutedEventArgs)
         Dim Dlg = New AboutDialog()
         Await Dlg.ShowAsync()
+    End Sub
+
+    Private Sub RefreshMRUs()
+        RecentlyAccessedFilesMenu.Items.Clear()
+        For Each Entry In StorageApplicationPermissions.MostRecentlyUsedList.Entries
+            'RecentlyAccessedFilesMenu.item
+            Dim MenuItem As New MenuFlyoutItem()
+            With MenuItem
+                .Text = Entry.Metadata
+                .Tag = Entry.Token
+                AddHandler .Click, AddressOf MRUItem_Click
+            End With
+            If (Not OpenedFile Is Nothing) AndAlso (OpenedFile.Name = Entry.Metadata) Then
+                MenuItem.Icon = New SymbolIcon(Symbol.Accept)
+            End If
+            RecentlyAccessedFilesMenu.Items.Add(MenuItem)
+        Next
+        Dim ClearItem As New MenuFlyoutItem()
+        With ClearItem
+            .Text = "Clear List"
+            .Tag = CLEAR_LIST
+        End With
+        With RecentlyAccessedFilesMenu.Items
+            .Add(New MenuFlyoutSeparator())
+            .Add(ClearItem)
+        End With
+    End Sub
+
+    Private Async Sub MRUItem_Click(sender As Object, e As RoutedEventArgs)
+        Dim MenuItem As MenuFlyoutItem = CType(sender, MenuFlyoutItem)
+        Dim Tag As String = MenuItem.Tag.ToString()
+
+        If Tag = CLEAR_LIST Then
+            StorageApplicationPermissions.MostRecentlyUsedList.Clear()
+            RefreshMRUs()
+            Return
+        End If
+
+        If Not StorageApplicationPermissions.MostRecentlyUsedList.ContainsItem(Tag) Then
+            ShowStatusNotification(String.Format("File ""{0}"" not found.", MenuItem.Text))
+            ShowToastNoficiation(String.Format("File ""{0}"" not found.", MenuItem.Text))
+            Return
+        End If
+
+        Dim FileToOpen = Await StorageApplicationPermissions.MostRecentlyUsedList.GetFileAsync(Tag)
+        Await OpenFile(FileToOpen)
+        RefreshMRUs()
     End Sub
 #End Region
 

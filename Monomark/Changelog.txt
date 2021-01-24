@@ -2,6 +2,13 @@
 
 The official Furthermark Changelog.
 
+## 2:49 PM 1/24/2021
+
+* Refactored saving
+* Added "Save As" option
+* Added `*.markdown` file open option
+* Fixed bug where Furthermark would crash when opening files with non-UTF8 encoded characters
+
 ## Monday, February 17, 2020 4:47 PM
 
 * Now using UWP app settings for saving settings resulting in less bugs where preferences would become overwritten
