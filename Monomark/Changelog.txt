@@ -8,6 +8,8 @@ The official Furthermark Changelog.
 * Added "Save As" option
 * Added `*.markdown` file open option
 * Fixed bug where Furthermark would crash when opening files with non-UTF8 encoded characters
+* Fixed flyout for selection formatting and clipboard actions
+* Added Recently Opened files
 
 ## Monday, February 17, 2020 4:47 PM
 

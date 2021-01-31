@@ -193,7 +193,7 @@
                               FontFamily="{x:Bind Settings.EditorFont, Mode=OneWay, Converter={StaticResource testConverter}}"
                               ScrollViewer.VerticalScrollBarVisibility="Visible" DragOver="Editor_DragOver" Drop="Editor_Drop"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto" SelectionChanged="Editor_SelectionChanged"
-                              Loaded="Editor_Loaded" PreviewKeyDown="TextBox_KeyDown" Paste="Editor_Paste"
+                              PreviewKeyDown="TextBox_KeyDown" Paste="Editor_Paste"
                               FontSize="{x:Bind Settings.FontSize, Mode=OneWay}" IsSpellCheckEnabled="{x:Bind Settings.SpellCheck, Mode=OneWay}"/>
             <Rectangle x:Name="ResizerRect" Grid.Column="2" Grid.Row="1" Fill="{StaticResource SystemControlForegroundAccentBrush}" Width="3"
                    PointerEntered="ResizerRect_PointerEntered" PointerExited="ResizerRect_PointerExited" CanDrag="False" DoubleTapped="ResizerRect_DoubleTapped"/>

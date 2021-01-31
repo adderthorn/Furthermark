@@ -230,6 +230,7 @@ Public NotInheritable Class MainPage
         AddHandler Clipboard.ContentChanged, AddressOf RaiseClipboardContentChanged
         AddHandler Window.Current.Activated, AddressOf RaiseWindowActivated
         AddHandler Editor.OnFormatEventHandler, AddressOf OnFormatHotkey
+        AddHandler Editor.OnClipboardEventHandler, AddressOf OnClipboardHotkey
         AddHandler SystemNavigationManagerPreview.GetForCurrentView().CloseRequested, AddressOf OnCloseRequested
         Dim AnUiSettings = New UISettings()
         AddHandler AnUiSettings.ColorValuesChanged, Sub(s, e)
@@ -460,10 +461,6 @@ Public NotInheritable Class MainPage
         End If
     End Sub
 
-    Private Sub Editor_Loaded(sender As Object, e As RoutedEventArgs)
-        'AddHandler GetObjectScrollViewer(Editor).ViewChanged, AddressOf Editor_ViewChanged
-    End Sub
-
     Private Function GetObjectScrollViewer(ByVal DepObject As DependencyObject) As ScrollViewer
         'This function requires the WinRTXamlToolkit
         Return DepObject.GetFirstDescendantOfType(Of ScrollViewer)()
@@ -622,6 +619,10 @@ Public NotInheritable Class MainPage
 
     Private Sub OnFormatHotkey(ByVal sender As Object, ByVal e As FormatEventArgs)
         FormatText(e.FormatType)
+    End Sub
+
+    Private Sub OnClipboardHotkey(ByVal sender As Object, ByVal e As ClipboardEventArgs)
+        OnClipboard(e.ClipboardTag)
     End Sub
 
     Private Sub OnFormat(sender As Object, e As RoutedEventArgs)
